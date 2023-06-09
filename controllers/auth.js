@@ -1,31 +1,38 @@
 const User = require('../models/User')
-const {StatusCodes} = require('http-status-codes')
-const {BadRequestError} = require('../errors/index')
-const jwt = require('jsonwebtoken')
+const { BadRequestError, UnauthenticatedError } = require("../errors");
+const { StatusCodes } = require('http-status-codes')
+
+
 
 const register = async (req, res) => {
-    
-    // Replaced by middleware
-    /* const {name, mail, password} = req.body
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt)
-    const tempUser = {name, mail, password: hashedPassword} */
-    
-    // Replaced by mongoose's validation in the model
-    /* const {name, mail, password} = req.body
-    if (!name || !mail || !password) {
-        throw new BadRequestError('Please provide name, mail & password')
-    } */
-    const user = await User.create({ ...req.body });
-    const token = jwt.sign({ userId: user._id, name: user.name }, 'jwtSecret', {
-      expiresIn: "30d",
-    });
-    
-    res.status(StatusCodes.CREATED).json({ user: { name: user.name }, token });
+    const user = await User.create({ ...req.body })
+    console.log("🚀 ~ file: auth.js:8 ~ register ~ user:", user)
+    const token = await user.createJWT()
+    res.status(StatusCodes.CREATED).json({ user: { name: user.name  }, token});
+}
+
+const allUsers = async (req, res) => {
+    const allUsers = await User.find()
+    console.log("🚀 ~ file: auth.js:15 ~ allUsers ~ allUsers:", allUsers)   
+    res.status(StatusCodes.OK).json({allUsers})
 }
 
 const login = async (req, res) => {
-    res.send('login user')
+    const {mail, password} = req.body
+    
+    if (!mail || !password) {
+        throw new BadRequestError('Please provide mail & password')
+    }
+    
+    const user = await User.findOne({mail})
+    console.log("🚀 ~ file: auth.js:27 ~ login ~ user:", user)
+    if (!user){
+        throw new UnauthenticatedError('Invalid credentials')
+    }
+
+    const token = user.createJWT()
+    res.status(StatusCodes.OK).json({ user: { name: user.name }, token })
+
 }
 
-module.exports = { register, login }
+module.exports = { register, login, allUsers }
